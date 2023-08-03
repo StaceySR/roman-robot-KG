@@ -26,7 +26,6 @@ import addNode from '@/actions/add_node'
 import hoverNode from '@/actions/hover_node'
 import addEdge from '@/actions/add_edge'
 import selectEdge from '@/actions/select_edge'
-import WebSocket from 'ws'
 import Axios from 'axios'
 
 export default {
@@ -49,77 +48,66 @@ export default {
     }
   },
   created () {
-    // 发起 WebSocket 连接
+    // 建立 WebSocket 连接到服务器
     const ws = new WebSocket('ws://localhost:8081')
 
     // 处理收到的 WebSocket 消息
-    // 监听 WebSocket 消息
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data)
-      console.log('index.vue: message: ', message)
-      // 解析消息
-      const messageType = message.type
-      const payload = message.payload
+      console.log('Received WebSocket message:', event.data)
 
-      // 根据消息类型处理不同类别的数据
-      switch (messageType) {
-        case 'updateDataList':
+      // 解析消息
+      try {
+        const message = JSON.parse(event.data)
+        console.log('Parsed WebSocket message:', message)
+
+        const messageType = message.type
+        const payload = message.payload
+
+        // 根据消息类型处理不同类别的数据
+        switch (messageType) {
+          case 'updateDataList':
           // 在这里处理收到的更新 dataList 的消息并更新页面数据
           // this.dataList.push(payload)
-          this.$store.state.dataList.nodes.push(payload)
-          console.log('index.vue: message: ', this.$store.state.dataList)
-          break
-        case 'otherMessageType':
+            // this.$store.state.dataList.nodes.push(payload)
+            console.log('index.vue: message: ', this.$store.state.dataList)
+
+            let obj = payload
+            console.log('obj-id-label: ', obj)
+            this.graph.addItem('node', obj)
+            this.$store.commit('addNode', obj)
+            // 操作记录
+            let logObj = {
+              id: String('log' + (this.$store.state.log.length + 1)),
+              action: 'addNode',
+              data: obj
+            }
+            this.$store.commit('addLog', logObj)
+            break
+
+          case 'initDataList':
+          // 将获取到的初始化数据信息通过graph.read呈现到网页上
+            this.$store.state.dataList = payload
+            this.graph.read(this.$store.state.dataList)
+            break
+          case 'otherMessageType':
           // 在这里处理其他类型的消息
           // ...
-          break
-          // 可以根据需要添加更多的消息类型
-          // ...
-        default:
-          console.log('Unknown message type:', messageType)
+            break
+            // 可以根据需要添加更多的消息类型
+            // ...
+          default:
+            console.log('Unknown message type:', messageType)
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error)
       }
     }
   },
   mounted () {
     this.initG6()
 
-    // 发起 GET 请求获取数据
+    // 发起 GET 请求获取 初始化 数据
     this.fetchData()
-
-    // // 建立 WebSocket 连接到服务器
-    // this.socket = new WebSocket('ws://localhost:8080')
-
-    // // 处理收到的 WebSocket 消息
-    // this.socket.onmessage = (event) => {
-    //   const message = JSON.parse(event.data)
-    //   console.log('index.vue: message: ', message)
-    //   // 解析消息
-    //   const messageType = message.type
-    //   const payload = message.payload
-
-    //   // 根据消息类型处理不同类别的数据
-    //   switch (messageType) {
-    //     case 'initDataList':
-    //       // 将获取到的初始化数据信息通过graph.read呈现到网页上
-    //       this.$store.state.dataList = payload
-    //       this.graph.read(this.$store.state.dataList)
-    //       break
-    //     case 'updateDataList':
-    //       // 在这里处理收到的更新 dataList 的消息并更新页面数据
-    //       // this.dataList.push(payload)
-    //       this.$store.state.dataList.push(payload)
-    //       console.log('index.vue: message: ', this.$store.state.dataList)
-    //       break
-    //     case 'otherMessageType':
-    //       // 在这里处理其他类型的消息
-    //       // ...
-    //       break
-    //     // 可以根据需要添加更多的消息类型
-    //     // ...
-    //     default:
-    //       console.log('Unknown message type:', messageType)
-    //   }
-    // }
   },
   methods: {
     initG6 () {

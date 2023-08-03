@@ -81,10 +81,29 @@ export default {
       // 学习过程
 
       // 学习结果--添加新的节点
-      const learnNodes = {id: 'node10', label: 'new-new-new-node', size: [140, 140], type: 'LOCATIONS', style: {fill: '#5B77AE', stroke: '#4682B4', lineWidth: 1, shadowColor: '#909399', shadowBlur: 10, shadowOffsetX: 3, shadowOffsetY: 3}, labelCfg: {position: 'center', style: {fill: '#FFFFFF', fontWeight: 800, opacity: 1, fontFamily: '微软雅黑', fontSize: 18}}}
-
-      // // 1. 将数据保存到本地存储，然后在index.vue文件中响应式更新
-      // localStorage.setItem('dataList', JSON.stringify(this.$store.state.dataList))
+      // 例如这里将userProperty节点作为新节点添加
+      // const learnNodes = {label: this.userProperty, size: [140, 140], type: 'USER_PROPERTY', style: {fill: '#EDF8FB', stroke: '#EDF8FB', lineWidth: 1, shadowColor: '#909399', shadowBlur: 10, shadowOffsetX: 3, shadowOffsetY: 3}, labelCfg: {position: 'center', style: {fill: '#000000', fontWeight: 800, opacity: 1, fontFamily: '微软雅黑', fontSize: 18}}}
+      // console.log('node.length: ', this.$store.state.dataList.nodes.length)
+      let obj = {
+        // id: String('node' + (this.$store.state.dataList.nodes.length + 1)),
+        // label: String(this.$store.state.dataList.nodes.length + 1)
+        // x: ev.x,
+        // y: ev.y
+        label: this.userProperty,
+        size: [140, 140],
+        type: 'USER_PROPERTY',
+        style: {fill: '#EDF8FB', stroke: '#EDF8FB', lineWidth: 1, shadowColor: '#909399', shadowBlur: 10, shadowOffsetX: 3, shadowOffsetY: 3},
+        labelCfg: {position: 'center', style: {fill: '#000000', fontWeight: 800, opacity: 1, fontFamily: '微软雅黑', fontSize: 18}}
+      }
+      // this.graph.addItem('node', obj)
+      // this.$store.commit('addNode', obj)
+      // // 操作记录
+      // let logObj = {
+      //   id: String('log' + (this.$store.state.log.length + 1)),
+      //   action: 'addNode',
+      //   data: obj
+      // }
+      // this.$store.commit('addLog', logObj)
 
       // 2. 发现更新的新节点的数据，然后通过 WebSocket 发送消息给服务器
       // const message = {
@@ -101,9 +120,10 @@ export default {
       ws.onopen = () => {
         const message = {
           type: 'updateDataList',
-          payload: learnNodes
+          payload: obj
         }
         ws.send(JSON.stringify(message))
+        console.log('ws.send.updateDataList: ', message)
         ws.close()
       }
     },

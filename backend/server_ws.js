@@ -1,10 +1,6 @@
+// websocket服务器
 const fs = require('fs');
 const WebSocket = require('ws');
-const express = require('express');
-const app = express();
-const port = 8080;
-const cors = require('cors'); // 引入 cors 模块
-app.use(cors()); // 使用 cors 中间件允许跨域请求
 
 // 读取 data.txt 文件中的数据作为初始 dataList
 let dataList = [];
@@ -16,7 +12,7 @@ try {
   // 将读取的内容解析为 JSON 格式，并赋值给 dataList 变量
   dataList = JSON.parse(data);
 
-  console.log('Read data from data.txt:', dataList);
+//   console.log('Read data from data.txt:', dataList);
 } catch (error) {
   console.error('Error reading data from data.txt:', error);
 }
@@ -53,27 +49,16 @@ wss.on('connection', (ws) => {
         break;
       case 'updateDataList':
         console.log("server.js: updateDataList: ", payload)
-        console.log("dataList: updateDataList: ", dataList)
-
+        // console.log("dataList: updateDataList: ", dataList)
         // 在这里处理来自 robot.vue 的更新 dataList 的消息，并更新 data.txt 文件
-        let obj = payload
-        obj.id = String('node' + (dataList.nodes.length + 1))
-        obj.x = 20*dataList.nodes.length
-        obj.y = 20*dataList.nodes.length
-
-        dataList.nodes.push(obj);
+        dataList.nodes.push(payload);
         fs.writeFileSync('./data/data.txt', JSON.stringify(dataList));
 
         // 广播消息给所有连接的客户端（包括 index.vue），通知数据已经更新
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             // client.send(JSON.stringify(dataList));
-            const updateMessage = {
-              type: 'updateDataList',
-              payload: obj
-            }
-            client.send(JSON.stringify(updateMessage))
-            // client.send(message)
+            client.send(message)
           }
         });
         break;
@@ -91,15 +76,4 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('Client disconnected.');
   });
-});
-
-// 处理 GET 请求，返回 data.txt 文件的内容
-app.get('/api/getData', (req, res) => {
-  console.log("server.js: /api/getData")
-  res.json(dataList);
-});
-
-// 启动服务器
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
 });
