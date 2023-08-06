@@ -21,6 +21,19 @@ try {
   console.error('Error reading data from data.txt:', error);
 }
 
+let episodeVectorList = [];
+// 读取 episodeVectors.txt 文件内容，存入episodeVectors
+try {
+  const data = fs.readFileSync('./data/episodeVectors.txt', 'utf8')
+
+  // 将读取的内容解析为 JSON 格式，并赋值给 dataList 变量
+  episodeVectorList = JSON.parse(data)
+
+  console.log('Read episodeVectors from episodeVectors.txt:', episodeVectorList)
+} catch (error) {
+  console.error('Error reading data from episodeVectors.txt:', error)
+}
+
 // 创建 WebSocket 服务器
 const wss = new WebSocket.Server({ port: 8081 });
 
@@ -98,6 +111,11 @@ app.get('/api/getData', (req, res) => {
   console.log("server.js: /api/getData")
   res.json(dataList);
 });
+
+app.get('/api/getEpisodeVectorList', (req, res) => {
+  console.log('server.js: /api/getEpisodeVectorList')
+  res.json(episodeVectorList)
+})
 
 // 启动服务器
 app.listen(port, () => {

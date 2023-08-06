@@ -13,6 +13,9 @@
           </button>
         </div>
       </div>
+      <div>
+        <img id="episode-image" src="../experiment/episodeImages/KFC.jpg">
+      </div>
       <div class="inner-container">
         <div class="episode-features">
             <label>User&Property: </label>
@@ -41,6 +44,8 @@
 
 <script>
 import Vue from 'vue' // 导入 Vue 对象，用于创建响应式数据
+import Axios from 'axios'
+import { findClosestImages } from '../utils/mostSimilarImages'
 
 export default {
   components: {
@@ -56,14 +61,166 @@ export default {
       style: '',
       timeStamp: '',
       question: '',
-      socket: null
+      episodeData: {},
+      socket: null,
+      episodeVectorList: []
     }
   },
   mounted () {
-    // 建立 WebSocket 连接到服务器
-    // this.socket = new WebSocket('ws://localhost:8080')
+    this.fetchData()
   },
   methods: {
+    dataProcessTimestamp (timeStamp) {
+      // 获取系统当前时间 timestamp = new Date();
+      timeStamp = new Date()
+      const currentDate = timeStamp
+
+      // 提取当前星期（0表示周日，1表示周一，依此类推）
+      const currentWeekday = currentDate.getDay()
+
+      // 判断是工作日还是周末
+      let dayType
+      if (currentWeekday === 0 || currentWeekday === 6) {
+        // dayType = 'weekend';
+        dayType = [0]
+      } else {
+        // dayType = 'weekday';
+        dayType = [1]
+      }
+
+      // const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const weekdayName = [[0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0]]
+      const currentWeekdayName = weekdayName[currentWeekday]
+
+      const currentHour = currentDate.getHours()
+
+      let period
+      if (currentHour >= 6 && currentHour < 11) {
+        // period = '上午';
+        period = [0, 0]
+      } else if (currentHour >= 11 && currentHour < 13) {
+        // period = '中午';
+        period = [0, 1]
+      } else if (currentHour >= 13 && currentHour < 17) {
+        // period = '下午';
+        period = [1, 0]
+      } else {
+        // period = '晚上';
+        period = [1, 1]
+      }
+
+      // 以向量形式返回 dayType: 2类。 weekdayName: 7类。 period: 4类。
+      // const vectorTimestamp = dayType + currentWeekdayName + period
+      const vectorTimestamp = [...dayType, ...currentWeekdayName, ...period]
+      return vectorTimestamp
+    },
+    dataProcessUser (user) {
+      // user = {type: 'xxx', sex: '男/女'}
+      let userType = {
+        '时尚潮流青年': [0, 0, 0, 0],
+        '文艺青年': [0, 0, 0, 1],
+        '运动达人': [0, 0, 1, 0],
+        '商务精英': [0, 0, 1, 1],
+        '甜美可爱学生': [0, 1, 0, 0],
+        '低龄儿童': [0, 1, 0, 1],
+        '银发族': [0, 1, 1, 0],
+        '精神中年': [0, 1, 1, 1]
+      }
+      let sexType = {
+        '男': [0],
+        '女': [1]
+      }
+      // return userType[user.type] + sexType[user.sex]
+      return [...userType[user.type], ...sexType[user.sex]]
+      // ... 这些类别是常见商场顾客划分，初始化 + 管理员审核、修改
+    },
+    dataProcessUserStyle (style) {
+      let styleType = {
+        '潮流风': [0, 0, 0, 0, 0],
+        '自然风': [0, 0, 0, 0, 1],
+        '复古风': [0, 0, 0, 1, 0],
+        '运动风': [0, 0, 0, 1, 1],
+        '摇滚风': [0, 0, 1, 0, 0],
+        '民族风': [0, 0, 1, 0, 1],
+        '青春风': [0, 0, 1, 1, 0],
+        '可爱风': [0, 0, 1, 1, 1],
+        '知性风': [0, 1, 0, 0, 0],
+        '简约风': [0, 1, 0, 0, 1]
+      }
+      return styleType[style]
+    },
+    dataProcessTask (task) {
+      return task
+    },
+    dataProcessUserAction (action) {
+      return action
+    },
+    episodeDataProcess (episodeData) {
+      // episodeData= {timestamp: xxx, userProperty: xxx, ...}
+      episodeData.TimeStamp = this.dataProcessTimestamp(episodeData.TimeStamp)
+      episodeData.userProperty = this.dataProcessUser(episodeData.userProperty)
+      episodeData.style = this.dataProcessUserStyle(episodeData.style)
+      episodeData.taskObjective = this.dataProcessTask(episodeData.taskObjective)
+      episodeData.actionPosture = this.dataProcessUserAction(episodeData.actionPosture)
+
+      console.log('episodeData: ', episodeData)
+
+      // 首先把episodeData的各项元素除了keyframe的向量组拼接起来
+      const episodeOtherVector = [...episodeData.TimeStamp, ...episodeData.userProperty, ...episodeData.style]
+      console.log('episodeOtherVector: ', episodeOtherVector)
+      return episodeOtherVector
+
+      // 如果我在计算em vector的时候只对关键帧计算向量，而不涉及到具体的time\user等细粒度信息
+      // 等到之后要求取重合项的时候再考虑time\user等这些细粒度信息
+    },
+    async imageVector () {
+      // const imagePath = '../experiment/episodeImages/KFC.jpg'
+      const imagePath = 'https://youimg1.c-ctrip.com/target/100e0u000000j5hx1ABC9.jpg'
+
+      const apiData = await this.fetchImageVectorData(imagePath)
+      console.log('imageVector: ', apiData.features)
+      return apiData.features
+    },
+    // step1
+    async EMEncoder (episodeData) {
+      // TODO: 实现将Episode Data转换为EM Vector的逻辑
+      const vector = await this.imageVector(episodeData.keyframeImage)
+      if (vector) {
+        const emVector = [...this.episodeDataProcess(episodeData), ...vector]
+        console.log('emVector: ', emVector)
+        return emVector
+      } else {
+        return null
+      }
+    },
+    // step2
+    isSimilarEpisode (targetVector) {
+      // 找到与这episode image最相似的3张图象
+      // 所有情景图像组成的特征向量集合，每一行代表一个情景图像的特征向量
+      const allEMVectors = this.episodeVectorList
+      // 示例：假设我们有一个目标图像的特征向量
+      // const targetVector = [0.3, 0.4, 0.5, 0.6];
+      console.log('isSimilarEpisode: allEMVector: ', allEMVectors)
+
+      return findClosestImages(allEMVectors, targetVector)
+    },
+    // step3
+    async keepSimilarEpisodeInfo (episodeData) {
+      // TODO: 实现找到重复出现的Episode Memory及提取特征信息，逐步构建完善的KG
+      const targetVector = await this.EMEncoder(episodeData)
+      if (this.isSimilarEpisode(targetVector)) {
+        console.log('similar episode!')
+        console.log('要保存的episodeData: ', episodeData)
+
+        // 同时要将这个episode vector保存如episodeVectorList
+        this.episodeVectorList.push(targetVector)
+
+        // 保存的时候要去重
+        return episodeData
+      } else {
+        console.log('not similar episode!')
+      }
+    },
     learnNewEpisode () {
       // 先判断能否从该episode中学习得到新知识
       const userPropertyInput = document.getElementById('user-property')
@@ -78,12 +235,20 @@ export default {
       this.timeStamp = timeStampInput.value
       this.question = questionInput.value
 
+      // this.episodeData.userProperty = this.userProperty
+      this.episodeData.userProperty = {type: '运动达人', sex: '女'}
+      // this.episodeData.style = this.style
+      this.episodeData.style = '复古风'
+      this.episodeData.timeStamp = this.timeStamp
+      this.episodeData.taskObjective = this.taskObjective
+      this.episodeData.actionPosture = null
+      this.episodeData.location = null
+
       // 学习过程
+      this.keepSimilarEpisodeInfo(this.episodeData)
 
       // 学习结果--添加新的节点
       // 例如这里将userProperty节点作为新节点添加
-      // const learnNodes = {label: this.userProperty, size: [140, 140], type: 'USER_PROPERTY', style: {fill: '#EDF8FB', stroke: '#EDF8FB', lineWidth: 1, shadowColor: '#909399', shadowBlur: 10, shadowOffsetX: 3, shadowOffsetY: 3}, labelCfg: {position: 'center', style: {fill: '#000000', fontWeight: 800, opacity: 1, fontFamily: '微软雅黑', fontSize: 18}}}
-      // console.log('node.length: ', this.$store.state.dataList.nodes.length)
       let obj = {
         // id: String('node' + (this.$store.state.dataList.nodes.length + 1)),
         // label: String(this.$store.state.dataList.nodes.length + 1)
@@ -95,25 +260,8 @@ export default {
         style: {fill: '#EDF8FB', stroke: '#EDF8FB', lineWidth: 1, shadowColor: '#909399', shadowBlur: 10, shadowOffsetX: 3, shadowOffsetY: 3},
         labelCfg: {position: 'center', style: {fill: '#000000', fontWeight: 800, opacity: 1, fontFamily: '微软雅黑', fontSize: 18}}
       }
-      // this.graph.addItem('node', obj)
-      // this.$store.commit('addNode', obj)
-      // // 操作记录
-      // let logObj = {
-      //   id: String('log' + (this.$store.state.log.length + 1)),
-      //   action: 'addNode',
-      //   data: obj
-      // }
-      // this.$store.commit('addLog', logObj)
 
       // 2. 发现更新的新节点的数据，然后通过 WebSocket 发送消息给服务器
-      // const message = {
-      //   type: 'updateDataList',
-      //   payload: learnNodes
-      // }
-      // console.log('robot.vue: message: ', message)
-      // this.socket.send(JSON.stringify(message))
-
-      // 发起 WebSocket 连接
       const ws = new WebSocket('ws://localhost:8081')
 
       // 发送消息给 server.js，通知它更新 dataList
@@ -141,6 +289,45 @@ export default {
       // 将结果填充到 answers-content 标签中
       const answersContentLabel = document.querySelector('.answers-content')
       answersContentLabel.textContent = this.answers
+    },
+    fetchData () {
+      Axios.get('http://localhost:8080/api/getEpisodeVectorList')
+        .then((response) => {
+          // 请求成功，将获取的数据更新到 dataList
+          this.episodeVectorList = response.data
+          console.log('robot.vue: fetchData success!')
+          console.log('fetchData: response.data: ', response.data)
+        })
+        .catch((error) => {
+          console.error('Error fetching data:', error)
+        })
+    },
+    wait (seconds) {
+      return new Promise(resolve => {
+        setTimeout(resolve, seconds * 1000)
+      })
+    },
+    async fetchImageVectorData (imagePath) {
+      try {
+        const response = await fetch('http://127.0.0.1:5000/get_feature_vector', {
+          method: 'POST',
+          // body: formData,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ image_url: imagePath })
+        })
+        if (!response.ok) {
+          throw new Error('Request failed')
+        }
+        const data = await response.json()
+        // 在这里处理获取到的数据
+        return data
+      } catch (error) {
+        console.error('Error:', error)
+        // 处理错误情况
+        return null // 或者返回适当的默认值
+      }
     }
   }
 }
@@ -216,6 +403,14 @@ export default {
   a.title:hover {
     text-decoration: underline;
   }
+.episodeImage {
+  width: 200px;
+  height: 200px;
+}
+img{
+  width: 200px;
+  height: 200px;
+}
 .inner-container {
   display: flex;
   flex-direction: column;
