@@ -19,15 +19,19 @@ function findClosestImages (featureVectors, targetVector) {
   }
 
   distances.sort((a, b) => a.distance - b.distance)
-
-  console.log('相似度： ', distances[0])
   // 要求相似度达到一定程度，才返回相应的最接近的图像。如果说数量>=3，那么就判定目前的episode是熟悉的，然后将其的特征信息存储进KG
 
-  let theCloestOne = distances[0]
-  if (theCloestOne >= 0.8 || distances[2] > 0.5) {
+  // let theClosestOne = distances[0]
+  // console.log('theClosestOne: ', theClosestOne)
+  if (distances[0].distance >= 0.8) {
     return true
     // 如果最相似的一张大于0.8，或者至少有3张相似度都大于0.5，判定为相似的
   } else {
+    if (distances.length >= 3) {
+      if (distances[2].distance > 0.5) {
+        return true
+      }
+    }
     return false
   }
 }

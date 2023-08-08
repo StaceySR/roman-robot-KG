@@ -157,16 +157,23 @@ export default {
     },
     episodeDataProcess (episodeData) {
       // episodeData= {timestamp: xxx, userProperty: xxx, ...}
-      episodeData.TimeStamp = this.dataProcessTimestamp(episodeData.TimeStamp)
-      episodeData.userProperty = this.dataProcessUser(episodeData.userProperty)
-      episodeData.style = this.dataProcessUserStyle(episodeData.style)
-      episodeData.taskObjective = this.dataProcessTask(episodeData.taskObjective)
-      episodeData.actionPosture = this.dataProcessUserAction(episodeData.actionPosture)
+      const processedEpisodeData = {
+        TimeStamp: this.dataProcessTimestamp(episodeData.TimeStamp),
+        userProperty: this.dataProcessUser(episodeData.userProperty),
+        style: this.dataProcessUserStyle(episodeData.style),
+        taskObjective: this.dataProcessTask(episodeData.taskObjective),
+        actionPosture: this.dataProcessUserAction(episodeData.actionPosture)
+      }
+      // episodeData.TimeStamp = this.dataProcessTimestamp(episodeData.TimeStamp)
+      // episodeData.userProperty = this.dataProcessUser(episodeData.userProperty)
+      // episodeData.style = this.dataProcessUserStyle(episodeData.style)
+      // episodeData.taskObjective = this.dataProcessTask(episodeData.taskObjective)
+      // episodeData.actionPosture = this.dataProcessUserAction(episodeData.actionPosture)
 
-      console.log('episodeData: ', episodeData)
+      // console.log('episodeData: ', episodeData)
 
       // 首先把episodeData的各项元素除了keyframe的向量组拼接起来
-      const episodeOtherVector = [...episodeData.TimeStamp, ...episodeData.userProperty, ...episodeData.style]
+      const episodeOtherVector = [...processedEpisodeData.TimeStamp, ...processedEpisodeData.userProperty, ...processedEpisodeData.style]
       console.log('episodeOtherVector: ', episodeOtherVector)
       return episodeOtherVector
 
@@ -210,11 +217,10 @@ export default {
       const targetVector = await this.EMEncoder(episodeData)
       if (this.isSimilarEpisode(targetVector)) {
         console.log('similar episode!')
-        console.log('要保存的episodeData: ', episodeData)
 
         // 同时要将这个episode vector保存如episodeVectorList
         this.episodeVectorList.push(targetVector)
-
+        console.log('要保存的episodeData: ', episodeData)
         // 保存的时候要去重
         return episodeData
       } else {
